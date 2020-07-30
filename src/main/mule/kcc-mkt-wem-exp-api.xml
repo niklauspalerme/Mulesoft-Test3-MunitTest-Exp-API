@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" 
+	  xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" 
+	  xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" 
+	  xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:kcc-utils="http://www.mulesoft.org/schema/mule/kcc-utils" 
+	  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+	  xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd  http://www.mulesoft.org/schema/mule/kcc-utils http://www.mulesoft.org/schema/mule/kcc-utils/current/mule-kcc-utils.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd"
+>
+
+	<!-- ApiKit configuration -->
+	<apikit:config name="kcc-mkt-wem-exp-api-config" api="kcc-mkt-wem-exp-api.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus"/>
+	
+
+	<!-- 1)  Main -->
+	<flow name="kcc-mkt-wem-exp-api-main">
+	
+		
+        <http:listener config-ref="kcc-mkt-wem-exp-api-httpListenerConfig" path="/api/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body><![CDATA[#[payload]]]></http:body>
+                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+            </http:error-response>
+        </http:listener>
+        
+		<apikit:router config-ref="kcc-mkt-wem-exp-api-config"/>
+		
+		<error-handler>
+			            
+			            <on-error-propagate type="APIKIT:METHOD_NOT_ALLOWED">
+			                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+			                    <ee:message>
+			                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+message: "Method not allowed",
+result_code: "21"
+}]]></ee:set-payload>
+			                    </ee:message>
+			                    <ee:variables>
+			                        <ee:set-variable variableName="httpStatus"><![CDATA[405]]></ee:set-variable>
+			                    </ee:variables>
+			                </ee:transform>
+			            </on-error-propagate>
+			            
+			            <on-error-propagate type="APIKIT:NOT_ACCEPTABLE">
+			                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+			                    <ee:message>
+			                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+message: "Not Acceptable",
+result_code: "90",
+}]]></ee:set-payload>
+			                    </ee:message>
+			                    <ee:variables>
+			                        <ee:set-variable variableName="httpStatus"><![CDATA[406]]></ee:set-variable>
+			                    </ee:variables>
+			                </ee:transform>
+			            </on-error-propagate>
+			            <on-error-propagate type="APIKIT:UNSUPPORTED_MEDIA_TYPE">
+			                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+			                    <ee:message>
+			                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+reason: "Unsupported media type",
+result_code: "90"			
+}]]></ee:set-payload>
+			                    </ee:message>
+			                    <ee:variables>
+			                        <ee:set-variable variableName="httpStatus"><![CDATA[415]]></ee:set-variable>
+			                    </ee:variables>
+			                </ee:transform>
+			            </on-error-propagate>
+					<on-error-propagate type="APIKIT:BAD_REQUEST">
+							<ee:transform doc:name="Transform Message" doc:id="d685af00-c59e-4eaf-960e-6a81c1066154">
+								<ee:message>
+									<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+reason: "Bad Request",
+result_code: "10"
+}]]></ee:set-payload>
+								</ee:message>
+							</ee:transform>
+			            </on-error-propagate> 
+    	 </error-handler>
+    </flow> 
+    
+    
+    <!-- 2) API Console -->
+    <flow name="kcc-mkt-wem-exp-api-console">
+        <http:listener config-ref="kcc-mkt-wem-exp-api-httpListenerConfig" path="/console/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body><![CDATA[#[payload]]]></http:body>
+                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:console config-ref="kcc-mkt-wem-exp-api-config"/>
+        <error-handler>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd 
+http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    
+    <!-- Post Flow -->
+    <flow name="post:\generateCoupon:application\json:kcc-mkt-wem-exp-api-config">
+        <kcc-utils:kc-logger level="INFO" doc:name="KC Logger-Request Received " doc:id="faac3427-d6e0-4bd4-895b-917c93e7b881" config-ref="KC_Utils_Config" logMessage="Started generateCoupon flow" interfaceName="kcc-mkt-wem-exp-api" tracepoint="START" tracepointDesc="request received in generateCoupon flow. " />
+        <set-variable value="#[now()]" doc:name="Set Request Time" doc:id="6ead4864-6904-4c43-baec-ae4798bf9034" variableName="request_start_time" />
+        <flow-ref doc:name="Flow Reference-generateCoupon" doc:id="01449dd8-f715-4686-b738-070afa9623fd" name="generateCoupon" />
+    </flow>
+</mule>

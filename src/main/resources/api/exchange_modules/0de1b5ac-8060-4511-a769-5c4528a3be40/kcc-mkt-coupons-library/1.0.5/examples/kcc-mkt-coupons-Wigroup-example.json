@@ -1,0 +1,19 @@
+{"id" : 115796,
+ "userRef" : "0813584314",
+ "basketId" : "wiPOS--2016-07-06 08:34:18",
+ "storeId" : 1050,
+ "totalProcessedAmount" : 1200,
+ "createDate" : "2016-07-06T10:34:20+0200",
+ "wiCode" : "4461707",
+ "interfaceIssuerId" : "your_qa_channel",
+ "wiTrxId" : "48711",
+ "redemption" : [{
+   "id" : 173608,
+   "processedAmount" : 300,
+   "createDate" : "2016-07-06T10:34:20+0200",
+   "type" : "COUPON",
+   "itemId" : 219086,
+   "campaignId" : 5943,
+   "wiCode" : "4461707"
+ }]
+}

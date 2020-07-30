@@ -1,0 +1,72 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<types:mule xmlns:types="http://www.mulesoft.org/schema/mule/types">
+  <types:catalog>
+    <types:type name="inputPostBody" format="json">
+      <types:shape format="weave" example="api/exchange_modules/0de1b5ac-8060-4511-a769-5c4528a3be40/kcc-mkt-coupons-library/1.0.5/examples/kcc-mkt-coupons-website-example.json"><![CDATA[%dw 2.0
+
+type inputPostBody = {|
+  EmailAddress: String, 
+  DataSource_Type: String, 
+  DataSource: String, 
+  CountryCode: String, 
+  MKT_Event: String, 
+  MKT_SubEvent: String, 
+  First_Name: String, 
+  Last_Name: String, 
+  Cell_Phone: String, 
+  Optin: Boolean, 
+  SMS_OptIn: Boolean, 
+  is_GigyaID_Required: Boolean, 
+  Gigya_APIKey: String, 
+  is_MAT_Required: Boolean, 
+  FB_User: String, 
+  Gender: String, 
+  UserStage: String, 
+  DOB: String, 
+  NationalID_Type: String, 
+  NationalID_Number: String, 
+  Address_Line1: String, 
+  Address_Line2: String, 
+  Address_ZipCode: String, 
+  Address_City: String, 
+  Address_State: String, 
+  Phone: String, 
+  Domain: String, 
+  MyInterests: String, 
+  POS: String, 
+  Product: String, 
+  Processed_Flag: String, 
+  User_ID: String, 
+  Optin_Type: String, 
+  Coupon_Code: String, 
+  Coupon_Type_ID: String, 
+  BrandRole: String, 
+  Order_Number: String, 
+  Hospital_Code: String, 
+  FromAddress: String, 
+  ToNumber: String, 
+  SMSText: String, 
+  NotifyUrl: String, 
+  Brand: String, 
+  Religious: Boolean, 
+  Children: Array<{|    DOB: String,     DOB_Type: Boolean,     Name: String,     Gender: String,     DiaperSize: String,     Weight: Number {"typeId": "int"},     WeightUnit: String  |}>
+|} {"example": "{\\\"EmailAddress\\\":\\\"P12unit.khaire@kcc.in.com\\\",\\\"DataSource_Type\\\":\\\"amet\\\",\\\"DataSource\\\":\\\"BCC_HUGGIES-Website_IL\\\",\\\"CountryCode\\\":\\\"IL\\\",\\\"MKT_Event\\\":\\\"dolor sit\\\",\\\"MKT_SubEvent\\\":\\\"dolor sit1\\\",\\\"First_Name\\\":\\\"Punit\\\",\\\"Last_Name\\\":\\\"Khaire\\\",\\\"Cell_Phone\\\":\\\"01234566361\\\",\\\"Optin\\\":true,\\\"SMS_OptIn\\\":true,\\\"is_GigyaID_Required\\\":false,\\\"Gigya_APIKey\\\":\\\"\\\",\\\"is_MAT_Required\\\":false,\\\"FB_User\\\":\\\"sit amet\\\",\\\"Gender\\\":\\\"T\\\",\\\"UserStage\\\":\\\"sit amet1\\\",\\\"DOB\\\":\\\"2019-04-01T01:00:00Z\\\",\\\"NationalID_Type\\\":\\\"Sed et\\\",\\\"NationalID_Number\\\":\\\"Sed et12\\\",\\\"Address_Line1\\\":\\\"Duis\\\",\\\"Address_Line2\\\":\\\"mollis ornare\\\",\\\"Address_ZipCode\\\":\\\"34567\\\",\\\"Address_City\\\":\\\"enim \\\",\\\"Address_State\\\":\\\"Israel\\\",\\\"Phone\\\":\\\"012345\\\",\\\"Domain\\\":\\\"in\\\",\\\"MyInterests\\\":\\\"Duis mollis ornare enim in\\\",\\\"POS\\\":\\\"12\\\",\\\"Product\\\":\\\"Huggies\\\",\\\"Processed_Flag\\\":\\\"N\\\",\\\"User_ID\\\":\\\"Vestibulum\\\",\\\"Optin_Type\\\":\\\"Brand\\\",\\\"Coupon_Code\\\":\\\"ipsum\\\",\\\"Coupon_Type_ID\\\":\\\"ipsum1\\\",\\\"BrandRole\\\":\\\"amet\\\",\\\"Order_Number\\\":\\\"7890\\\",\\\"Hospital_Code\\\":\\\"H09\\\",\\\"FromAddress\\\":\\\"7373783989\\\",\\\"ToNumber\\\":\\\"7373783989\\\",\\\"SMSText\\\":\\\"Sample SMS Text\\\",\\\"NotifyUrl\\\":\\\"https:\\/\\/www.example.com\\/sms\\\",\\\"Brand\\\":\\\"Huggies\\\",\\\"Religious\\\":true,\\\"Children\\\":[{\\\"DOB\\\":\\\"2018-04-01T01:00:00Z\\\",\\\"DOB_Type\\\":false,\\\"Name\\\":\\\"Erwin\\\",\\\"Gender\\\":\\\"F\\\",\\\"DiaperSize\\\":\\\"M\\\",\\\"Weight\\\":4,\\\"WeightUnit\\\":\\\"kg\\\"},{\\\"DOB\\\":\\\"2017-04-01T01:00:00Z\\\",\\\"DOB_Type\\\":true,\\\"Name\\\":\\\"Drer\\\",\\\"Gender\\\":\\\"M\\\",\\\"DiaperSize\\\":\\\"M\\\",\\\"Weight\\\":4,\\\"WeightUnit\\\":\\\"kg\\\"}]}"}
+
+]]></types:shape>
+    </types:type>
+  </types:catalog>
+  <types:enrichment select="#ed1425dd-8fdf-4c70-9535-b32798186d34">
+    <types:processor-declaration>
+      <types:input-event>
+        <types:message>
+          <types:payload type="inputPostBody"/>
+        </types:message>
+      </types:input-event>
+      <types:output-event>
+        <types:message>
+          <types:payload type="inputPostBody"/>
+        </types:message>
+      </types:output-event>
+    </types:processor-declaration>
+  </types:enrichment>
+</types:mule>

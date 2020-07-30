@@ -1,0 +1,215 @@
+#%RAML 1.0 DataType
+type: object
+properties:
+  EmailAddress: 
+    type: string
+    maxLength: 254
+    required: false
+    pattern: "[a-zA-Z0-9._]+[@][a-zA-Z0-9][.a-zA-Z0-9]+"  
+  DataSource_Type : 
+    type: string
+    maxLength: 50
+    required: false
+  DataSource : 
+    type: string
+    maxLength: 50
+    required: true
+  CountryCode: 
+    type: string
+    maxLength: 2
+    required: true
+    pattern: "[A-Z][A-Z]"
+  MKT_Event : 
+    type: string
+    maxLength: 100
+    required: false
+  MKT_SubEvent: 
+    type: string
+    maxLength: 100
+    required: false
+  First_Name:
+    type: string
+    maxLength: 200
+    required: true
+  Last_Name:
+    type: string
+    maxLength: 200
+    required: true
+  Cell_Phone:
+    type: string
+    maxLength: 20
+    required: false
+    pattern: "[0-9]+"
+  OptIn:
+    type: boolean
+    required: false
+  SMS_OptIn:
+    type: boolean
+    required: false
+  is_GigyaID_Required:
+    type: boolean
+    required: false
+    default: true
+  Gigya_APIKey:
+    type: string
+    maxLength: 100
+    required: false
+  is_MAT_Required:
+    type: boolean
+    required: false
+    default: true
+  FB_User:
+    type: string
+    maxLength: 200
+    required: false
+  Gender: 
+    type: string
+    maxLength: 1
+    required: false
+  UserStage:
+    type: string
+    maxLength: 50
+    required: false
+  DOB:
+    type: datetime
+    required: false
+  NationalID_Type:
+    type: string
+    maxLength: 50
+    required: false
+  NationalID_Number:
+    type: string
+    maxLength: 20
+    required: false
+  Address_Line1:
+    type: string
+    maxLength: 255
+    required: false
+  Address_Line2:
+    type: string
+    maxLength: 255
+    required: false
+  Address_ZipCode:
+    type: string
+    maxLength: 10
+    required: false
+  Address_City:
+    type: string
+    maxLength: 200
+    required: false
+  Address_State:
+    type: string
+    maxLength: 100
+    required: false
+  Phone:
+    type: string
+    maxLength: 100
+    required: false
+  Domain:
+    type: string
+    maxLength: 300
+    required: false
+  MyInterests:
+    type: string
+    maxLength: 300
+    required: false
+  POS:
+    type: string
+    maxLength: 200
+    required: false
+  Product:
+    type: string
+    maxLength: 200
+    required: false
+  Processed_Flag:
+    type: string
+    maxLength: 1
+    required: false
+    default: "N"
+  User_ID:
+    type: string
+    maxLength: 100
+    required: false
+  Optin_Type:
+    type: string
+    maxLength: 50
+    required: false
+  Coupon_Code:
+    type: string
+    maxLength: 200
+    required: false
+  Coupon_Type_ID:
+    type: string
+    maxLength: 50
+    required: false
+  BrandRole:
+    type: string
+    maxLength: 50
+    required: false
+   Order_Number:
+    type: string
+    maxLength: 100
+    required: false
+  Hospital_Code:
+    type: string
+    maxLength: 100
+    required: false
+  FromAddress:
+    type: string
+    maxLength: 50
+    required: true
+  ToNumber:
+    type: string
+    maxLength: 50
+    required: true
+  SMSText:
+    type: string
+    maxLength: 250
+    required: false
+  NotifyUrl:
+    type: string
+    maxLength: 200
+    required: false
+  Brand:
+    type: string
+    maxLength: 200
+    required: false
+  Religious:
+    type: boolean
+    required: false
+  Children:
+    type: array
+    items:
+      properties:
+        DOB:
+          type: datetime
+          required: true
+        Name:
+          type: string
+          maxLength: 100
+          required: false
+        Gender:
+          type: string
+          maxLength: 100
+          required: false
+          default: "F"
+          enum:
+            - "M"
+            - "F"
+            - "U"
+        Weight:
+          type: number
+          required: false
+        WeightUnit:
+          type: string
+          maxLength: 5
+          required: false
+        DOB_Type:
+          type: boolean
+          required: false
+        DiaperSize:
+          type: string
+          maxLength: 5
+          required: false
+
+

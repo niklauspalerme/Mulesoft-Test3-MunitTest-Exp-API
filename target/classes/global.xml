@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway"
+	xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties"
+	xmlns:tls="http://www.mulesoft.org/schema/mule/tls" xmlns:servicebus="http://www.mulesoft.org/schema/mule/servicebus"
+	xmlns:cluster="http://www.mulesoft.org/schema/mule/ee/cluster"
+	xmlns:kcc-utils="http://www.mulesoft.org/schema/mule/kcc-utils" xmlns:kcc-logger="http://www.mulesoft.org/schema/mule/kcc-logger" xmlns:smart-logger="http://www.mulesoft.org/schema/mule/smart-logger" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd 
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/smart-logger http://www.mulesoft.org/schema/mule/smart-logger/current/mule-smart-logger.xsd
+http://www.mulesoft.org/schema/mule/kcc-logger http://www.mulesoft.org/schema/mule/kcc-logger/current/mule-kcc-logger.xsd
+http://www.mulesoft.org/schema/mule/kcc-utils http://www.mulesoft.org/schema/mule/kcc-utils/current/mule-kcc-utils.xsd
+http://www.mulesoft.org/schema/mule/servicebus http://www.mulesoft.org/schema/mule/servicebus/current/mule-servicebus.xsd
+http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd
+http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd
+http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd">
+	 <http:listener-config name="kcc-mkt-wem-exp-api-httpListenerConfig">
+        <http:listener-connection host="${secure::https.private.host}" port="${secure::https.private.port}" protocol="HTTPS">
+			<tls:context >
+				<tls:key-store type="jks" path="certs/kcc-mkt-wem-exp-api.kcc.cloudhub.com.jks" keyPassword="${secure::https.private.password}" password="${secure::https.private.password}" />
+			</tls:context>
+		</http:listener-connection>
+    </http:listener-config>
+    <servicebus:config name="Microsoft_Service_Bus_Config" doc:name="Microsoft Service Bus Config" doc:id="29639d04-6c9c-4531-8b06-4e092ee96586" >
+		<servicebus:username-password-connection userName="${secure::azure.servicebus.SharedAccessKeyName}" namespace="${secure::azure.servicebus.namespace}" password="${secure::azure.servicebus.SharedAccessKey}" maxConnections="${secure::azure.servicebus.maxconnections}" skipConnectivityTest="true">
+		</servicebus:username-password-connection>
+	</servicebus:config>
+   	<kcc-utils:config name="KC_Utils_Config" doc:name="KC Utils Config" doc:id="4054c40c-09e9-4694-9ed3-32a3af048f52" />
+	<secure-properties:config name="Secure_Properties_Config" doc:name="Secure Properties Config" doc:id="467a134c-eaeb-4f2a-9074-2d8b22725f3c" file="properties/dev.yaml" key="1234567890123456">
+		<secure-properties:encrypt algorithm="Blowfish" />
+	</secure-properties:config>
+<!-- 	<apikit:config outboundHeadersMapName="outboundHeadersMapName" httpStatusVarName="httpStatus" doc:name="Router" doc:id="1980379c-38b2-4f22-a1eb-1be643f3daa0" name="kcc-mkt-wem-exp-api-config" api="api\kcc-mkt-wem-exp-api.raml" raml="api\kcc-mkt-wem-exp-api.raml" />
+ -->	
+<!-- 	<api-gateway:autodiscovery apiId="${secure::api.id}" doc:name="API Autodiscovery" doc:id="5356eaf2-6bd9-4714-bbea-001827c64285" flowRef="kcc-mkt-wem-exp-api-main" />
+ --></mule>

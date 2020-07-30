@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:munit="http://www.mulesoft.org/schema/mule/munit" xmlns:munit-tools="http://www.mulesoft.org/schema/mule/munit-tools"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xsi:schemaLocation="
+		http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+		http://www.mulesoft.org/schema/mule/munit http://www.mulesoft.org/schema/mule/munit/current/mule-munit.xsd
+		http://www.mulesoft.org/schema/mule/munit-tools  http://www.mulesoft.org/schema/mule/munit-tools/current/mule-munit-tools.xsd">
+	
+	<!-- Nombre del File del Test -->
+	<munit:config name="kcc-mkt-wem-exp-api-test-suite.xml" />
+	
+	<!--  Importamos el api.xml file para que lea el test-->
+	<import doc:name="Import"  file="kcc-mkt-wem-exp-api.xml" />
+	
+	<!-- Test-1 MAIN-FLOW -->
+	<munit:test name="kcc-mkt-wem-exp-api-test-suite-MAIN-FLOW" doc:id="211db023-092e-4228-b096-761f8811c9a4" description="Test">
+		<munit:behavior>
+			<munit-tools:mock-when doc:name="Mock when" doc:id="226bbef1-32e9-4e1e-8587-ce91540492d3" processor="apikit:router">
+				<munit-tools:with-attributes >
+					<munit-tools:with-attribute whereValue="kcc-mkt-wem-exp-api-config" attributeName="config-ref" />
+				</munit-tools:with-attributes>
+			</munit-tools:mock-when>
+		</munit:behavior>
+		<munit:execution >
+			<flow-ref doc:name="Flow-ref to kcc-mkt-wem-exp-api-main" doc:id="fcd00175-2968-4e09-961a-9f7020210073" name="kcc-mkt-wem-exp-api-main"/>
+		</munit:execution>
+		<munit:validation >
+			<munit-tools:verify-call doc:name="Verify call" doc:id="b6d26046-ad56-4914-9792-53ae96dbf930" processor="apikit:router" atLeast="1">
+				<munit-tools:with-attributes >
+					<munit-tools:with-attribute whereValue="kcc-mkt-wem-exp-api-config" attributeName="config-ref" />
+				</munit-tools:with-attributes>
+			</munit-tools:verify-call>
+		</munit:validation>
+	</munit:test>
+	
+	<!-- Test-2 APIKIT:METHOD_NOT_ALLOWED -->
+	<munit:test name="kcc-mkt-wem-exp-api-test-APIKIT:METHOD_NOT_ALLOWED" doc:id="347f3ab0-e8e0-4baa-a7fa-28f1c7494dd8" >
+		<munit:behavior >
+			<munit-tools:mock-when doc:name="Mock when" doc:id="03e0756f-0cc3-4c5f-a772-aedd25dfdf10" processor="apikit:router">
+				<munit-tools:with-attributes >
+					<munit-tools:with-attribute whereValue="kcc-mkt-wem-exp-api-config" attributeName="config-ref" />
+				</munit-tools:with-attributes>
+				<munit-tools:then-return >
+					<munit-tools:error typeId="APIKIT:METHOD_NOT_ALLOWED" />
+				</munit-tools:then-return>
+			</munit-tools:mock-when>
+		</munit:behavior>
+		<munit:execution >
+			<try doc:name="Try" doc:id="81c4a18b-854c-4034-b521-db8b080b7260" >
+				<flow-ref doc:name="Flow Reference" doc:id="7f57a613-3624-4fc6-9db4-ca1f9049f092" name="kcc-mkt-wem-exp-api-main"/>
+				<error-handler >
+					<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="2483eef5-e43e-4716-9f4e-027a724d327e" />
+				</error-handler>
+			</try>
+		</munit:execution>
+		<munit:validation >
+			<munit-tools:assert-equals doc:name="Assert equals" doc:id="5467f61f-0083-4d8f-8103-4995a1ee279f" actual="#[payload]" expected='#[{
+				message: "Method not allowed",
+				result_code: "21"
+				}]'/>
+		</munit:validation>
+	</munit:test>
+	
+	<!-- Test-3 APIKIT:NOT_ACCEPTABLE -->
+	<munit:test name="kcc-mkt-wem-exp-api-test-APIKIT:NOT_ACCEPTABLE" doc:id="c63c6821-4d0d-4ae3-8193-f2ecf1580c39" >
+		<munit:behavior >
+			<munit-tools:mock-when doc:name="Mock when" doc:id="bb71ab44-f4d2-4da6-b868-f08463ceeee8" processor="apikit:router">
+				<munit-tools:with-attributes >
+					<munit-tools:with-attribute whereValue="kcc-mkt-wem-exp-api-config" attributeName="config-ref" />
+				</munit-tools:with-attributes>
+				<munit-tools:then-return >
+					<munit-tools:error typeId="APIKIT:NOT_ACCEPTABLE" />
+				</munit-tools:then-return>
+			</munit-tools:mock-when>
+		</munit:behavior>
+		<munit:execution >
+			<try doc:name="Try" doc:id="94fe55db-ed24-4230-a68e-d51ff38850c7" >
+				<flow-ref doc:name="Flow Reference" doc:id="57d66c2f-efa4-42da-9678-e281d5323798" name="kcc-mkt-wem-exp-api-main"/>
+				<error-handler >
+					<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="05a74c59-60d5-44b4-9cbd-87cc61aa4e63" />
+				</error-handler>
+			</try>
+		</munit:execution>
+		<munit:validation>
+			<munit-tools:assert-equals doc:name="Assert equals" doc:id="6dd62377-3f4c-4d07-8e88-291bca06665a" actual="#[payload]" expected='#[{
+message: "Not Acceptable",
+result_code: "90",
+}]'/>
+		</munit:validation>
+	</munit:test>
+	
+	<!-- Test-4 APIKIT:UNSUPPORTED_MEDIA_TYPE -->
+	<munit:test name="kcc-mkt-wem-exp-api-test-APIKIT:UNSUPPORTED_MEDIA_TYPE" doc:id="cbe45d55-f69d-42bd-a16b-0b0335690ea2" >
+		<munit:behavior >
+			<munit-tools:mock-when doc:name="Mock when" doc:id="16800f5b-af04-4c26-88b5-52c133bdc682" processor="apikit:router">
+				<munit-tools:with-attributes >
+					<munit-tools:with-attribute whereValue="kcc-mkt-wem-exp-api-config" attributeName="config-ref" />
+				</munit-tools:with-attributes>
+				<munit-tools:then-return >
+					<munit-tools:error typeId="APIKIT:UNSUPPORTED_MEDIA_TYPE" />
+				</munit-tools:then-return>
+			</munit-tools:mock-when>
+		</munit:behavior>
+		<munit:execution >
+			<try doc:name="Try" doc:id="1d3dd790-cb25-4b23-ac7f-74c419e56c6a" >
+				<flow-ref doc:name="Flow Reference" doc:id="e81bbb0b-9649-40c6-8c87-3089edd6cc4d" name="kcc-mkt-wem-exp-api-main"/>
+				<error-handler >
+					<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="fb1e7373-4528-4317-9dfa-42eb82f625ca" />
+				</error-handler>
+			</try>
+		</munit:execution>
+		<munit:validation >
+			<munit-tools:assert-equals doc:name="Assert equals" doc:id="ecb012ff-4588-4205-8471-844e06bcbe04" actual="#[payload]" expected='#[{
+reason: "Unsupported media type",
+result_code: "90"			
+}]'/>
+		</munit:validation>
+	</munit:test>
+	
+	<!-- Test-5 APIKIT:BAD_REQUEST -->
+	<munit:test name="kcc-mkt-wem-exp-api-test-APIKIT:BAD_REQUEST" doc:id="df8e338f-4514-4cc1-ae6f-0d74a514236f" >
+		<munit:behavior >
+			<munit-tools:mock-when doc:name="Mock when" doc:id="8dd3f913-c9fd-4902-97f2-8df80f245b50" processor="apikit:router">
+				<munit-tools:with-attributes >
+					<munit-tools:with-attribute whereValue="kcc-mkt-wem-exp-api-config" attributeName="config-ref" />
+				</munit-tools:with-attributes>
+				<munit-tools:then-return >
+					<munit-tools:error typeId="APIKIT:BAD_REQUEST" />
+				</munit-tools:then-return>
+			</munit-tools:mock-when>
+		</munit:behavior>
+		<munit:execution >
+			<try doc:name="Try" doc:id="f0b1c177-d871-4077-a493-31f42e7224b8" >
+				<flow-ref doc:name="Flow Reference" doc:id="7e11a3fd-13a8-4a62-b06d-1838cf8818ce" name="kcc-mkt-wem-exp-api-main"/>
+				<error-handler >
+					<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="61505640-0aca-4451-9dd9-6e1dc3cd1923" />
+				</error-handler>
+			</try>
+		</munit:execution>
+		<munit:validation >
+			<munit-tools:assert-equals doc:name="Assert equals" doc:id="4c2cb4bd-f960-4d30-af45-c08372472357" actual="#[payload]" expected='#[{
+reason: "Bad Request",
+result_code: "10"
+}]'/>
+		</munit:validation>
+	</munit:test>
+	
+	<!-- Test-6 APIKIT:APICONSOLE -->
+	<munit:test name="kcc-mkt-wem-exp-api-test-APICONSOLE" doc:id="6bdbf3e7-ca43-49fb-8e27-4d2a6f222bf9" >
+		<munit:behavior >
+			<munit-tools:mock-when doc:name="Mock when" doc:id="c79f11d2-c439-4eaa-91f3-5c91d6e79f0f" processor="apikit:console">
+				<munit-tools:with-attributes >
+					<munit-tools:with-attribute whereValue="kcc-mkt-wem-exp-api-config" attributeName="config-ref" />
+				</munit-tools:with-attributes>
+				<munit-tools:then-return >
+					<munit-tools:error typeId="APIKIT:NOT_FOUND" />
+				</munit-tools:then-return>
+			</munit-tools:mock-when>
+		</munit:behavior>
+		<munit:execution >
+			<try doc:name="Try" doc:id="1f2dbac8-8446-4a6f-9d53-e187f903ffeb" >
+				<flow-ref doc:name="Flow Reference" doc:id="165ae25d-ea36-40c6-abde-4bc8e105c8f8" name="kcc-mkt-wem-exp-api-console" />
+				<error-handler >
+					<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="7db3bd08-e437-4885-a979-a80f2222679b" />
+				</error-handler>
+			</try>
+		</munit:execution>
+		<munit:validation>
+			<munit-tools:assert-equals doc:name="Assert equals" doc:id="9a64e0fe-f83a-4a2f-8dc2-8d25ef27d2e1" actual="#[payload.message]" expected='#["Resource not found"]'/>
+		</munit:validation>
+	</munit:test>
+	
+	<!-- Test-7 POST:\generateCoupon -->
+	<munit:test name="post:\generateCoupon" doc:id="1ef22662-8509-4400-88d0-32de2c1ae7ad" >
+		<munit:behavior >
+			<munit-tools:mock-when doc:name="Mock when" doc:id="30ff0a1d-2d65-4a43-98c2-7e19e88c90f1" processor="servicebus:queue-send">
+				<munit-tools:with-attributes >
+					<munit-tools:with-attribute whereValue="Queue send" attributeName="doc:name" />
+					<munit-tools:with-attribute whereValue="0899e1db-814e-4364-beb2-10accff0e371" attributeName="doc:id" />
+				</munit-tools:with-attributes>
+				<munit-tools:then-return >
+					<munit-tools:payload value="#[readUrl('classpath://sample_data/wem-exp-output.json')] " mediaType="application/json" encoding="UTF-8" />
+				</munit-tools:then-return>
+			</munit-tools:mock-when>
+		</munit:behavior>
+		
+		<munit:execution >
+			<munit:set-event doc:name="Set Event" doc:id="9ba1f9fb-fcdf-4783-af4b-5a150ea2d438" >
+				<munit:payload value="#[readUrl('classpath://sample_data/wem_exp_api_post_input.json')] " />
+			</munit:set-event>
+			<flow-ref doc:name="Flow Reference" doc:id="e83a20a8-2868-4141-aa3e-dbc49ea4acc3" name="post:\generateCoupon:application\json:kcc-mkt-wem-exp-api-config"/>
+		</munit:execution>
+		<munit:validation >
+			<munit-tools:verify-call doc:name="Verify call" doc:id="d804a7c1-fe9c-43b8-ba59-9ff6e44fc596" processor="ee:transform" atLeast="1">
+				<munit-tools:with-attributes >
+					<munit-tools:with-attribute whereValue="Transform Message" attributeName="doc:name" />
+					<munit-tools:with-attribute whereValue="9f999f63-79b7-48f3-8083-9ee4f93b6d25" attributeName="doc:id" />
+				</munit-tools:with-attributes>
+			</munit-tools:verify-call>
+			<munit-tools:assert-that doc:name="Assert that" doc:id="7c0df3fc-3a85-4420-810f-0058247ee10d" expression="#[payload]" is="#[MunitTools::notNullValue()]"/>
+		</munit:validation>
+	</munit:test>
+
+</mule>

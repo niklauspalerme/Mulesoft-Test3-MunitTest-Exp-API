@@ -1,0 +1,789 @@
+# Pipeline to Deploy the API to the AnyPoint Cloud Hub Environment
+# Steps to build, deploy to DEV, QA , UAT and PROD
+
+name: $(Date:yyyyMMdd)$(Rev:.r)
+
+trigger:
+  branches:
+    include:
+    - dev
+    - master
+    
+variables:
+  - group: Cloud-Automation-prod
+  - group: Marketing
+  - name: checkmarx-team
+    value: \cxserver\sp\kimberly clark\API_Developer
+  - name: domainbase
+    value: $(Build.Repository.Name)
+  - name: ServiceNowConfig
+    value: '$(Build.Repository.Name)'
+  - name: ConfigProp
+    value: 'properties'
+  - name: ConfigPropVault
+    value: 'prop.vault.key'
+
+resources:
+  repositories:
+  - repository: DevOpsScripts
+    type: git
+    name: kcc-cicd/DevOpsScripts
+
+stages:
+- stage: Build 
+  jobs:
+  - job: 'AgentJob_Build'
+    pool:
+      name: 'KC Hosted API'
+      
+    steps:
+    
+    - checkout: DevOpsScripts
+      clean: true
+
+    - checkout: self
+      clean: true
+
+    - task: KcDisplayEnvironmentVariables@0
+    
+    - task: PowerShell@2
+      displayName: Getting the parameter values from the configuration json file
+      inputs:
+        filePath: '$(Agent.BuildDirectory)/s/DevOpsScripts/API_GetConfigurationParamValue.ps1'
+        arguments: '-ConfigFilePath "$(Agent.BuildDirectory)/s/$(Build.Repository.Name)/config/ARM/config_dev.json" -ConfigProperty $(ConfigProp) -ConfigPropertyvalue $(ConfigPropVault)'
+    
+    - task: PowerShell@2
+      displayName: Reading the custom properties from the Global Configuration file
+      inputs:
+        targetType: 'inline'
+        script: |
+          $filecontent = get-content -path '$(Agent.BuildDirectory)/s/DevOpsScripts/CustomProperties.txt'
+          write-host "Custom Properties: " $filecontent
+          Write-Host "##vso[task.setvariable variable=CustomProps]$filecontent"
+          
+    - task: Maven@3
+      displayName: Maven deploy
+      inputs:
+        mavenPomFile: $(Agent.BuildDirectory)/s/$(Build.Repository.Name)/pom.xml
+        goals: 'clean deploy'
+        options: '-Denv=dev -Dprop.vault.key=$(propvalue) $(CustomProps)'
+        publishJUnitResults: true
+        javaHomeOption: 'JDKVersion'
+        mavenVersionOption: 'Default'
+        mavenAuthenticateFeed: false
+        effectivePomSkip: false
+        sonarQubeRunAnalysis: false
+    
+    - task: K-C Security static source code analysis@88
+      displayName: 'K-C Security static source code analysis'
+      inputs:
+        service_url: '$(checkmarx-url)'
+        service_username: '$(checkmarx-username)'
+        service_passw0rd: '$(checkmarx-password)'
+        projectName: '$(domainbase)'
+        preset: 'Checkmarx Default'
+        fullTeamName: '$(checkmarx-team)'
+        incScan: true
+        high: '0'
+
+    - task: PublishCodeCoverageResults@1
+      inputs:
+        codeCoverageTool: 'JaCoCo'
+        summaryFileLocation: '$(Agent.BuildDirectory)/s/$(Build.Repository.Name)/target/site/munit/coverage/summary.html'
+        reportDirectory: '$(Agent.BuildDirectory)/s/$(Build.Repository.Name)/target/site/munit/coverage'
+        
+    - task: PublishCodeCoverageResults@1
+      displayName: 'Publishing the Code Coverage Results'
+      inputs:
+        codeCoverageTool: JaCoCo
+        summaryFileLocation: $(Agent.BuildDirectory)/s/$(Build.Repository.Name)/**/site/jacoco/jacoco.xml
+        reportDirectory: $(Agent.BuildDirectory)/s/$(Build.Repository.Name)/**/site/jacoco/
+        additionalCodeCoverageFiles: $(Agent.BuildDirectory)/s/$(Build.Repository.Name)/**/target/jacoco.exec
+
+    - task: CopyFiles@2
+      displayName: 'Copying to the Artifacts folder'
+      inputs:
+        SourceFolder: '$(Agent.BuildDirectory)/s/$(Build.Repository.Name)/target'
+        Contents: |
+          **
+          *.jar
+          !classes/**
+          !munitworkingdir*/**
+          !repository/**
+          !temp/**
+          !test*/**
+        TargetFolder: '$(build.artifactstagingdirectory)'
+
+    - task: CopyFiles@2
+      displayName: 'Copy Config Files to the Artifacts folder'
+      inputs:
+        SourceFolder: '$(Agent.BuildDirectory)/s/$(Build.Repository.Name)'
+        Contents: 'config/**'
+        TargetFolder: '$(build.artifactstagingdirectory)'
+
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish Artifact: drop'
+
+  - job: 'AgentJob_SonarQubeScans'
+    pool:
+      name: Azure Pipelines
+      vmImage: 'vs2017-win2016'
+  
+    steps:
+    
+    - task: KCSonarQubePrepare@5
+      inputs:
+        sq_env: 'prod'
+        scannerMode: 'CLI'
+        configMode: 'file'
+        extraProperties: |
+          # Additional properties that will be passed to the scanner, 
+          # Put one key=value per line, example:
+          # sonar.exclusions=**/*.bin
+          sonar.projectName=$(Build.Repository.Name)
+          sonar.projectKey=$(Build.Repository.Name)
+          sonar.sources=src/main/mule
+          sonar.languages=mule4
+          
+    - task: KCSonarQubeAnalyze@4
+      displayName: 'K-C SonarQube Run Code Analysis'
+
+    - task: KCSonarQubePublish@4
+      displayName: 'K-C SonarQube Publish Quality Gate Result'
+      inputs:
+        pollingTimeoutSec: '300'
+
+#- job: Deploying_API_to_CloudHub_DEV_environment
+- stage: DEV
+  dependsOn: Build
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/dev'))
+        
+  jobs:
+  # track deployments on the DEV environment
+  - deployment: DeployToDev
+    displayName: Deploy to DEV Workspace
+    pool:
+      name: 'KC Hosted API'
+    environment: 'DEV'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: none
+
+          - checkout: DevOpsScripts
+            clean: true
+          
+          - task: KcSnowChangeRequestCreate@0
+            inputs:
+              u_template_used: '491656afdbe63748fd63eae51b9619b4'
+              cmdb_ci: '$(ServiceNowConfig)'
+
+          - task: DownloadBuildArtifacts@0
+            displayName: 'Downloading the Build Artifacts'
+            inputs:
+              buildType: 'current'
+              downloadType: 'single'
+              artifactName: 'drop'
+              downloadPath: '$(System.ArtifactsDirectory)'
+          
+          - task: PowerShell@2
+            inputs:
+              targetType: 'inline'
+              script: |
+                write-host $(System.ArtifactsDirectory)/drop
+                Get-ChildItem -Path $(System.ArtifactsDirectory)/drop
+                $jarFileName = get-ChildItem $(System.ArtifactsDirectory)/drop -recurse | where {$_.name -like "$apiname*.jar"} | select name
+                $jarFileName = $jarFileName.Name
+                			            write-host "API File Name:" $jarFileName
+                                  Write-Host "##vso[task.setvariable variable=jarFileName]$jarFileName"
+            
+          - task: PowerShell@2
+            displayName: 'Check API Manager Flag'
+            inputs:
+              targetType: 'inline'
+              script: |
+                $psdata = Get-Content -Raw -Path Config_Dev.json | ConvertFrom-Json
+                $Apipromote = $psdata.APIManagerPromote
+                $DevApiId= $psdata.Dev_ApiId
+                write-host "Promote API Manager: " $ApiPromote
+                write-host "Promote API ID:" $DevApiId
+                
+                Write-Host "##vso[task.setvariable variable=ApiPromote]$ApiPromote"
+                Write-Host "##vso[task.setvariable variable=DevApiId]$DevApiId"
+              workingDirectory: '$(System.ArtifactsDirectory)/drop/config/APIManager'
+              pwsh: true
+         
+          - task: PowerShell@2
+            displayName: 'API Manager Creation'
+            inputs:
+              filePath: '$(Agent.BuildDirectory)/s/API_Manager_Promote.ps1'
+              arguments: '$(CA_NP_Client_ID) $(CA_NP_Client_Secret) $(ORG_ID) $(ENV_DEV_ID) $(DevApiId)'
+              workingDirectory: '$(Agent.BuildDirectory)'
+              pwsh: true
+            condition: eq(variables.ApiPromote, 'true')
+          
+          - task: PowerShell@2
+            displayName: 'Get the Mule Application Name'
+            inputs:
+              filePath: '$(Agent.BuildDirectory)/s/API_GetApplicationName.ps1'
+              arguments: '-PomFilePath "$(System.ArtifactsDirectory)/drop/META-INF/mule-src/$(Build.Repository.Name)/pom.xml"'
+              pwsh: true
+          
+          - task: PowerShell@2
+            displayName: 'Get Application Status'
+            inputs:
+              filePath: '$(Agent.BuildDirectory)/s/API_CheckIfexists.ps1'
+              arguments: '$(CA_NP_Client_ID) $(CA_NP_Client_Secret) $(ORG_ID) $(ENV_DEV_ID) "$(apiname)-dev"'
+              workingDirectory: '$(Agent.BuildDirectory)'
+              pwsh: true
+            
+          - task: PowerShell@2
+            displayName: 'Setting Mule Application Status'
+            inputs:
+              targetType: 'inline'
+              script: |
+                write-host "API Exists: " $(apiexists)
+                Write-Host "##vso[task.setvariable variable=Appstatus]$(apiexists)"
+              pwsh: true
+
+          - task: PowerShell@2
+            displayName: 'Checking if it is an API or an Application'
+            inputs:
+              filePath: '$(Agent.BuildDirectory)/s/API_GetConfigurationParamValue.ps1'
+              arguments: '-ConfigFilePath "$(System.ArtifactsDirectory)/drop/config/ARM/config_dev.json" -ConfigProperty $(ConfigProp) -ConfigPropertyvalue "api.id"'
+
+          - task: PowerShell@2
+            displayName: 'Setting Mule Application Type'
+            inputs:
+              targetType: 'inline'
+              script: |
+                  write-host "Application Type:" $(propvalue) 
+                  Write-Host "##vso[task.setvariable variable=Apptype]$(propvalue)"
+              pwsh: true
+
+          - task: PowerShell@2
+            displayName: 'Get API ID'
+            inputs:
+              filePath: '$(Agent.BuildDirectory)/s/Get_APIID.ps1'
+              arguments: '$(CA_NP_Client_ID) $(CA_NP_Client_Secret) $(ORG_ID) $(ENV_DEV_ID) "$(apiname)-dev"'
+              workingDirectory: '$(Agent.BuildDirectory)'
+              pwsh: true
+            condition: and 
+                       (
+                          eq(variables.ApiPromote, 'false'),
+                          eq(variables.Appstatus, '0') 
+                       )
+
+          - task: PowerShell@2
+            displayName: 'Deploy/Update the API - With API Manager creation'
+            inputs:
+              filePath: '$(Agent.BuildDirectory)/s/API_DeployUpdate.ps1'
+              arguments: '$(CA_NP_Client_ID) $(CA_NP_Client_Secret) $(ORG_ID) $(ENV_DEV_ID) "$(apiname)-dev" $(APIMgrResponseId) $(AP_Client_ID) $(AP_Client_Secret) "$(System.ArtifactsDirectory)/drop/$(jarFileName)" "$(System.ArtifactsDirectory)/drop/config/ARM/Config_Dev.json"'
+              pwsh: true
+            condition: eq(variables.ApiPromote, 'true')
+
+          - task: PowerShell@2
+            displayName: 'Deploy/Update the API - Without API Manager creation - Update'
+            inputs:
+              filePath: '$(Agent.BuildDirectory)/s/API_DeployUpdate.ps1'
+              arguments: '$(CA_NP_Client_ID) $(CA_NP_Client_Secret) $(ORG_ID) $(ENV_DEV_ID) "$(apiname)-dev" $(currentapiid) $(AP_Client_ID) $(AP_Client_Secret) "$(System.ArtifactsDirectory)/drop/$(jarFileName)" "$(System.ArtifactsDirectory)/drop/config/ARM/Config_Dev.json"'
+              pwsh: true
+            condition: and 
+                       (
+                          eq(variables.ApiPromote, 'false'),
+                          eq(variables.Appstatus, '0'),
+                          ne(variables.Apptype, 'notdefined') 
+                       )
+          - task: PowerShell@2
+            displayName: 'Deploy/Update the API - Without API Manager creation - Deploy'
+            inputs:
+              filePath: '$(Agent.BuildDirectory)/s/API_DeployUpdate.ps1'
+              arguments: '$(CA_NP_Client_ID) $(CA_NP_Client_Secret) $(ORG_ID) $(ENV_DEV_ID) "$(apiname)-dev" $(DevApiId) $(AP_Client_ID) $(AP_Client_Secret) "$(System.ArtifactsDirectory)/drop/$(jarFileName)" "$(System.ArtifactsDirectory)/drop/config/ARM/Config_Dev.json"'
+              pwsh: true
+            condition: and 
+                       (
+                          eq(variables.ApiPromote, 'false'),
+                          eq(variables.Appstatus, '1'),
+                          ne(variables.Apptype, 'notdefined')
+                        )
+          
+          - task: PowerShell@2
+            displayName: 'Deploy/Update the Application'
+            inputs:
+              filePath: '$(Agent.BuildDirectory)/s/API_DeployUpdate.ps1'
+              arguments: '$(CA_NP_Client_ID) $(CA_NP_Client_Secret) $(ORG_ID) $(ENV_DEV_ID) "$(apiname)-dev" $(Apptype) $(AP_Client_ID) $(AP_Client_Secret) "$(System.ArtifactsDirectory)/drop/$(jarFileName)" "$(System.ArtifactsDirectory)/drop/config/ARM/Config_Dev.json"'
+              pwsh: true
+            condition: and 
+                       (
+                          eq(variables.ApiPromote, 'false'),
+                          eq(variables.Apptype, 'notdefined') 
+                       )  
+
+          - task: KcSnowChangeRequestCloseUnsuccessful@0
+            displayName: 'K-C ServiceNow Change Request Close Unsuccessful'
+            inputs:
+              work_notes: 'Deployment to DEV environment failed'
+            condition: failed()
+
+          - task: KcSnowChangeRequestCloseSuccessful@0
+            displayName: 'K-C ServiceNow Change Request Close Successful'
+            inputs:
+              work_notes: 'Deployment to  DEV environment Successful'
+
+- stage: UAT
+  dependsOn: Build
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
+        
+  jobs:
+  # track deployments on the UAT environment
+  - deployment: DeployToUat
+    displayName: Deploy to UAT Workspace
+    pool:
+      name: 'KC Hosted API'
+    environment: 'UAT'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: none
+
+          - checkout: DevOpsScripts
+            clean: true
+          
+          - task: KcSnowChangeRequestCreate@0
+            inputs:
+              u_template_used: '491656afdbe63748fd63eae51b9619b4'
+              cmdb_ci: '$(ServiceNowConfig)'
+
+          - task: DownloadBuildArtifacts@0
+            displayName: 'Downloading the Build Artifacts'
+            inputs:
+              buildType: 'current'
+              downloadType: 'single'
+              artifactName: 'drop'
+              downloadPath: '$(System.ArtifactsDirectory)'
+          
+          - task: PowerShell@2
+            inputs:
+              targetType: 'inline'
+              script: |
+                write-host $(System.ArtifactsDirectory)/drop
+                Get-ChildItem -Path $(System.ArtifactsDirectory)/drop
+                $jarFileName = get-ChildItem $(System.ArtifactsDirectory)/drop -recurse | where {$_.name -like "$apiname*.jar"} | select name
+                $jarFileName = $jarFileName.Name
+                			            write-host "API File Name:" $jarFileName
+                                  Write-Host "##vso[task.setvariable variable=jarFileName]$jarFileName"
+            
+          - task: PowerShell@2
+            displayName: 'Check API Manager Flag'
+            inputs:
+              targetType: 'inline'
+              script: |
+                $psdata = Get-Content -Raw -Path config_uat.json | ConvertFrom-Json
+                $Apipromote = $psdata.APIManagerPromote
+                $DevApiId= $psdata.Dev_ApiId
+                write-host "Promote API Manager: " $ApiPromote
+                write-host "Promote API ID:" $DevApiId
+                
+                Write-Host "##vso[task.setvariable variable=ApiPromote]$ApiPromote"
+                Write-Host "##vso[task.setvariable variable=DevApiId]$DevApiId"
+              workingDirectory: '$(System.ArtifactsDirectory)/drop/config/APIManager'
+              pwsh: true
+         
+          - task: PowerShell@2
+            displayName: 'API Manager Creation'
+            inputs:
+              filePath: '$(Agent.BuildDirectory)/s/API_Manager_Promote.ps1'
+              arguments: '$(CA_NP_Client_ID) $(CA_NP_Client_Secret) $(ORG_ID) $(ENV_UAT_ID) $(DevApiId)'
+              workingDirectory: '$(Agent.BuildDirectory)'
+              pwsh: true
+            condition: eq(variables.ApiPromote, 'true')
+          
+          - task: PowerShell@2
+            displayName: 'Get the Mule Application Name'
+            inputs:
+              filePath: '$(Agent.BuildDirectory)/s/API_GetApplicationName.ps1'
+              arguments: '-PomFilePath "$(System.ArtifactsDirectory)/drop/META-INF/mule-src/$(Build.Repository.Name)/pom.xml"'
+              pwsh: true
+          
+          - task: PowerShell@2
+            displayName: 'Get Application Status'
+            inputs:
+              filePath: '$(Agent.BuildDirectory)/s/API_CheckIfexists.ps1'
+              arguments: '$(CA_NP_Client_ID) $(CA_NP_Client_Secret) $(ORG_ID) $(ENV_UAT_ID) "$(apiname)-uat"'
+              workingDirectory: '$(Agent.BuildDirectory)'
+              pwsh: true
+            
+          - task: PowerShell@2
+            displayName: 'Setting Mule Application Status'
+            inputs:
+              targetType: 'inline'
+              script: |
+                write-host "API Exists: " $(apiexists)
+                Write-Host "##vso[task.setvariable variable=Appstatus]$(apiexists)"
+              pwsh: true
+
+          - task: PowerShell@2
+            displayName: 'Checking if it is an API or an Application'
+            inputs:
+              filePath: '$(Agent.BuildDirectory)/s/API_GetConfigurationParamValue.ps1'
+              arguments: '-ConfigFilePath "$(System.ArtifactsDirectory)/drop/config/ARM/config_uat.json" -ConfigProperty $(ConfigProp) -ConfigPropertyvalue "api.id"'
+
+          - task: PowerShell@2
+            displayName: 'Setting Mule Application Type'
+            inputs:
+              targetType: 'inline'
+              script: |
+                  write-host "Application Type:" $(propvalue) 
+                  Write-Host "##vso[task.setvariable variable=Apptype]$(propvalue)"
+              pwsh: true
+              
+          - task: PowerShell@2
+            displayName: 'Get API ID'
+            inputs:
+              filePath: '$(Agent.BuildDirectory)/s/Get_APIID.ps1'
+              arguments: '$(CA_NP_Client_ID) $(CA_NP_Client_Secret) $(ORG_ID) $(ENV_UAT_ID) "$(apiname)-uat"'
+              workingDirectory: '$(Agent.BuildDirectory)'
+              pwsh: true
+            condition: and 
+                       (
+                          eq(variables.ApiPromote, 'false'),
+                          eq(variables.Appstatus, '0') 
+                       )
+
+          - task: PowerShell@2
+            displayName: 'Deploy/Update the API - With API Manager creation'
+            inputs:
+              filePath: '$(Agent.BuildDirectory)/s/API_DeployUpdate.ps1'
+              arguments: '$(CA_NP_Client_ID) $(CA_NP_Client_Secret) $(ORG_ID) $(ENV_UAT_ID) "$(apiname)-uat" $(APIMgrResponseId) $(AP_Client_ID) $(AP_Client_Secret) "$(System.ArtifactsDirectory)/drop/$(jarFileName)" "$(System.ArtifactsDirectory)/drop/config/ARM/Config_uat.json"'
+              pwsh: true
+            condition: eq(variables.ApiPromote, 'true')
+
+          - task: PowerShell@2
+            displayName: 'Deploy/Update the API - Without API Manager creation - Update'
+            inputs:
+              filePath: '$(Agent.BuildDirectory)/s/API_DeployUpdate.ps1'
+              arguments: '$(CA_NP_Client_ID) $(CA_NP_Client_Secret) $(ORG_ID) $(ENV_UAT_ID) "$(apiname)-uat" $(currentapiid) $(AP_Client_ID) $(AP_Client_Secret) "$(System.ArtifactsDirectory)/drop/$(jarFileName)" "$(System.ArtifactsDirectory)/drop/config/ARM/Config_uat.json"'
+              pwsh: true
+            condition: and 
+                       (
+                          eq(variables.ApiPromote, 'false'),
+                          eq(variables.Appstatus, '0'),
+                          ne(variables.Apptype, 'notdefined')
+                       )
+          - task: PowerShell@2
+            displayName: 'Deploy/Update the API - Without API Manager creation - Deploy'
+            inputs:
+              filePath: '$(Agent.BuildDirectory)/s/API_DeployUpdate.ps1'
+              arguments: '$(CA_NP_Client_ID) $(CA_NP_Client_Secret) $(ORG_ID) $(ENV_UAT_ID) "$(apiname)-uat" $(DevApiId) $(AP_Client_ID) $(AP_Client_Secret) "$(System.ArtifactsDirectory)/drop/$(jarFileName)" "$(System.ArtifactsDirectory)/drop/config/ARM/Config_uat.json"'
+              pwsh: true
+            condition: and 
+                       (
+                          eq(variables.ApiPromote, 'false'),
+                          eq(variables.Appstatus, '1'),
+                          ne(variables.Apptype, 'notdefined')
+                        )
+          
+          - task: PowerShell@2
+            displayName: 'Deploy/Update the Application'
+            inputs:
+              filePath: '$(Agent.BuildDirectory)/s/API_DeployUpdate.ps1'
+              arguments: '$(CA_NP_Client_ID) $(CA_NP_Client_Secret) $(ORG_ID) $(ENV_UAT_ID) "$(apiname)-uat" $(Apptype) $(AP_Client_ID) $(AP_Client_Secret) "$(System.ArtifactsDirectory)/drop/$(jarFileName)" "$(System.ArtifactsDirectory)/drop/config/ARM/Config_uat.json"'
+              pwsh: true
+            condition: and 
+                       (
+                          eq(variables.ApiPromote, 'false'),
+                          eq(variables.Apptype, 'notdefined') 
+                       )  
+
+
+          - task: KcSnowChangeRequestCloseUnsuccessful@0
+            displayName: 'K-C ServiceNow Change Request Close Unsuccessful'
+            inputs:
+              work_notes: 'Deployment to UAT environment failed'
+            condition: failed()
+
+          - task: KcSnowChangeRequestCloseSuccessful@0
+            displayName: 'K-C ServiceNow Change Request Close Successful'
+            inputs:
+              work_notes: 'Deployment to UAT environment Successful'
+
+
+#- job: Deploying_API_to_CloudHub_PROD_environment
+- stage: PROD
+  dependsOn: UAT
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
+        
+  jobs:
+  # track deployments on the PROD environment
+  - deployment: DeployToProd
+    displayName: Deploy to PROD Workspace
+    pool:
+      name: 'KC Hosted API'
+    environment: 'PROD'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: none
+
+          - checkout: DevOpsScripts
+            clean: true
+
+          - checkout: self
+            persistCredentials: true
+            clean: true
+          
+          - task: PowerShell@2
+            inputs:
+              targetType: 'inline'
+              script: |
+                write-host $(Agent.BuildDirectory)/s/$(Build.Repository.Name)
+                write-host $(Build.SourceBranchName)
+                git config user.email IABOAP03@kcc.com 
+                git config user.name "IA IT Centre Bangalore GDTC Engineering - DevOps Azure Devops"
+                git checkout $(Build.SourceBranchName)
+                git reset --hard origin/$(Build.SourceBranchName)
+                #git pull origin $(Build.SourceBranchName)
+              workingDirectory: '$(Agent.BuildDirectory)/s/$(Build.Repository.Name)/'
+              
+          - task: Maven@3
+            inputs:
+              mavenPomFile: '$(Agent.BuildDirectory)/s/$(Build.Repository.Name)/pom.xml'
+              goals: '--batch-mode release:clean'
+              options: '-DscmCommentPrefix="[skip ci]"'
+              publishJUnitResults: false
+              javaHomeOption: 'JDKVersion'
+              mavenVersionOption: 'Default'
+              mavenAuthenticateFeed: false
+              effectivePomSkip: false
+              sonarQubeRunAnalysis: false
+
+          - task: Maven@3
+            inputs:
+              mavenPomFile: '$(Agent.BuildDirectory)/s/$(Build.Repository.Name)/pom.xml'
+              goals: '--batch-mode clean -DskipTests -Darguments=-DskipTests release:prepare'
+              options: '-DscmCommentPrefix="[skip ci]"'
+              publishJUnitResults: false
+              javaHomeOption: 'JDKVersion'
+              mavenVersionOption: 'Default'
+              mavenAuthenticateFeed: false
+              effectivePomSkip: false
+              sonarQubeRunAnalysis: false
+          
+          - task: KcSnowChangeRequestCreate@0
+            inputs:
+              u_template_used: '491656afdbe63748fd63eae51b9619b4'
+              cmdb_ci: '$(ServiceNowConfig)'
+
+          - task: DownloadBuildArtifacts@0
+            displayName: 'Downloading the Build Artifacts'
+            inputs:
+              buildType: 'current'
+              downloadType: 'single'
+              artifactName: 'drop'
+              downloadPath: '$(System.ArtifactsDirectory)'
+
+          - task: PowerShell@2
+            displayName: 'Check API Manager Flag'
+            inputs:
+              targetType: 'inline'
+              script: |
+                $psdata = Get-Content -Raw -Path config_prod.json | ConvertFrom-Json
+                $Apipromote = $psdata.APIManagerPromote
+                $DevApiId= $psdata.Dev_ApiId
+                write-host "Promote API Manager: " $ApiPromote
+                write-host "Promote API ID:" $DevApiId
+                
+                Write-Host "##vso[task.setvariable variable=ApiPromote]$ApiPromote"
+                Write-Host "##vso[task.setvariable variable=DevApiId]$DevApiId"
+              workingDirectory: '$(System.ArtifactsDirectory)/drop/config/APIManager'
+              pwsh: true
+         
+          - task: PowerShell@2
+            displayName: 'API Manager Creation'
+            inputs:
+              filePath: '$(Agent.BuildDirectory)/s/API_Manager_Promote.ps1'
+              arguments: '$(CA_P_Client_ID) $(CA_P_Client_Secret) $(ORG_ID) $(ENV_PROD_ID) $(DevApiId)'
+              workingDirectory: '$(Agent.BuildDirectory)'
+              pwsh: true
+            condition: eq(variables.ApiPromote, 'true')
+
+          - task: PowerShell@2
+            displayName: 'Get the Mule Application Name'
+            inputs:
+              filePath: '$(Agent.BuildDirectory)/s/API_GetApplicationName.ps1'
+              arguments: '-PomFilePath "$(System.ArtifactsDirectory)/drop/META-INF/mule-src/$(Build.Repository.Name)/pom.xml"'
+              pwsh: true
+          
+          - task: PowerShell@2
+            displayName: 'Get Application Status'
+            inputs:
+              filePath: '$(Agent.BuildDirectory)/s/API_CheckIfexists.ps1'
+              arguments: '$(CA_P_Client_ID) $(CA_P_Client_Secret) $(ORG_ID) $(ENV_PROD_ID) "$(apiname)"'
+              workingDirectory: '$(Agent.BuildDirectory)'
+              pwsh: true
+            
+          - task: PowerShell@2
+            displayName: 'Setting Mule Application Status'
+            inputs:
+              targetType: 'inline'
+              script: |
+                write-host "API Exists: " $(apiexists)
+                Write-Host "##vso[task.setvariable variable=Appstatus]$(apiexists)"
+              pwsh: true
+
+          - task: PowerShell@2
+            displayName: 'Checking if it is an API or an Application'
+            inputs:
+              filePath: '$(Agent.BuildDirectory)/s/API_GetConfigurationParamValue.ps1'
+              arguments: '-ConfigFilePath "$(System.ArtifactsDirectory)/drop/config/ARM/config_prod.json" -ConfigProperty $(ConfigProp) -ConfigPropertyvalue "api.id"'
+      
+          
+          - task: PowerShell@2
+            displayName: 'Setting Mule Application Type'
+            inputs:
+              targetType: 'inline'
+              script: |
+                  write-host "Application Type:" $(propvalue) 
+                  Write-Host "##vso[task.setvariable variable=Apptype]$(propvalue)"
+              pwsh: true
+              
+          - task: PowerShell@2
+            inputs:
+              targetType: 'inline'
+              script: |
+                write-host $(Agent.BuildDirectory)/s/$(Build.Repository.Name)/target
+                write-host $(apiname)
+                $jarFileName = get-ChildItem $(Agent.BuildDirectory)/s/$(Build.Repository.Name)/target -recurse | where {$_.name -like "$(apiname)*.jar"} | select name
+                $jarFileName = $jarFileName.Name
+                			            write-host "API File Name:" $jarFileName
+                                  Write-Host "##vso[task.setvariable variable=jarFileName]$jarFileName"
+              pwsh: true
+                            
+          - task: PowerShell@2
+            displayName: 'Get API ID'
+            inputs:
+              filePath: '$(Agent.BuildDirectory)/s/Get_APIID.ps1'
+              arguments: '$(CA_P_Client_ID) $(CA_P_Client_Secret) $(ORG_ID) $(ENV_PROD_ID) $(apiname)'
+              workingDirectory: '$(Agent.BuildDirectory)'
+              pwsh: true
+            condition: and 
+                       (
+                          eq(variables.ApiPromote, 'false'),
+                          eq(variables.Appstatus, '0') 
+                       )
+
+          - task: PowerShell@2
+            displayName: 'Deploy/Update the API - With API Manager creation'
+            inputs:
+              filePath: '$(Agent.BuildDirectory)/s/API_DeployUpdate.ps1'
+              arguments: '$(CA_P_Client_ID) $(CA_P_Client_Secret) $(ORG_ID) $(ENV_PROD_ID) "$(apiname)" $(APIMgrResponseId) $(AP_Client_ID) $(AP_Client_Secret) "$(Agent.BuildDirectory)/s/$(Build.Repository.Name)/target/$(jarFileName)" "$(System.ArtifactsDirectory)/drop/config/ARM/Config_prod.json"'
+              pwsh: true
+            condition: eq(variables.ApiPromote, 'true')
+
+          - task: PowerShell@2
+            displayName: 'Deploy/Update the API - Without API Manager creation  - Update'
+            inputs:
+              filePath: '$(Agent.BuildDirectory)/s/API_DeployUpdate.ps1'
+              arguments: '$(CA_P_Client_ID) $(CA_P_Client_Secret) $(ORG_ID) $(ENV_PROD_ID) "$(apiname)" $(currentapiid) $(AP_Client_ID) $(AP_Client_Secret) "$(Agent.BuildDirectory)/s/$(Build.Repository.Name)/target/$(jarFileName)" "$(System.ArtifactsDirectory)/drop/config/ARM/Config_prod.json"'
+              pwsh: true
+            condition: and 
+                       (
+                          eq(variables.ApiPromote, 'false'),
+                          eq(variables.Appstatus, '0'),
+                          ne(variables.Apptype, 'notdefined')                           
+                       )
+           
+          - task: PowerShell@2
+            displayName: 'Deploy/Update the API - Without API Manager creation  - Deploy'
+            inputs:
+              filePath: '$(Agent.BuildDirectory)/s/API_DeployUpdate.ps1'
+              arguments: '$(CA_P_Client_ID) $(CA_P_Client_Secret) $(ORG_ID) $(ENV_PROD_ID) "$(apiname)" $(DevApiId) $(AP_Client_ID) $(AP_Client_Secret) "$(Agent.BuildDirectory)/s/$(Build.Repository.Name)/target/$(jarFileName)" "$(System.ArtifactsDirectory)/drop/config/ARM/Config_prod.json"'
+              pwsh: true
+            condition: and 
+                       (
+                          eq(variables.ApiPromote, 'false'),
+                          eq(variables.Appstatus, '1'),
+                          ne(variables.Apptype, 'notdefined')
+                        )
+          
+          - task: PowerShell@2
+            displayName: 'Deploy/Update the Application'
+            inputs:
+              filePath: '$(Agent.BuildDirectory)/s/API_DeployUpdate.ps1'
+              arguments: '$(CA_P_Client_ID) $(CA_P_Client_Secret) $(ORG_ID) $(ENV_PROD_ID) "$(apiname)" $(Apptype) $(AP_Client_ID) $(AP_Client_Secret) "$(Agent.BuildDirectory)/s/$(Build.Repository.Name)/target/$(jarFileName)" "$(System.ArtifactsDirectory)/drop/config/ARM/Config_prod.json"'
+              pwsh: true
+            condition: and 
+                       (
+                          eq(variables.ApiPromote, 'false'),
+                          eq(variables.Apptype, 'notdefined') 
+                       ) 
+                        
+          - task: Maven@3
+            inputs:
+              mavenPomFile: '$(Agent.BuildDirectory)/s/$(Build.Repository.Name)/pom.xml'
+              goals: '--batch-mode clean -DskipTests -Darguments=-DskipTests release:perform'
+              options: '-DscmCommentPrefix="[skip ci]"'
+              publishJUnitResults: false
+              javaHomeOption: 'JDKVersion'
+              mavenVersionOption: 'Default'
+              mavenAuthenticateFeed: false
+              effectivePomSkip: false
+              sonarQubeRunAnalysis: false
+          
+          - task: KcSnowChangeRequestCloseUnsuccessful@0
+            displayName: 'K-C ServiceNow Change Request Close Unsuccessful'
+            inputs:
+              work_notes: 'Deployment to PROD environment failed'
+            condition: failed()
+
+          - task: KcSnowChangeRequestCloseSuccessful@0
+            displayName: 'K-C ServiceNow Change Request Close Successful'
+            inputs:
+              work_notes: 'Deployment to PROD environment Successful'
+
+          - task: PowerShell@2
+            displayName: 'Get the Mule Application Version'
+            inputs:
+              filePath: '$(Agent.BuildDirectory)/s/API_GetApplicationVersion.ps1'
+              arguments: '-PomFilePath "$(Agent.BuildDirectory)/s/$(Build.Repository.Name)/pom.xml"'
+              pwsh: true
+
+          - task: PowerShell@2
+            inputs:
+              targetType: 'inline'
+              script: |
+                write-host $(Agent.BuildDirectory)/s/$(Build.Repository.Name)
+                write-host $(Build.SourceBranchName)
+                git config user.email IABOAP03@kcc.com 
+                git config user.name "IA IT Centre Bangalore GDTC Engineering - DevOps Azure Devops"
+                git checkout dev
+                git reset --hard origin/dev
+              workingDirectory: '$(Agent.BuildDirectory)/s/$(Build.Repository.Name)/'
+
+          - task: Maven@3
+            inputs:
+              mavenPomFile: '$(Agent.BuildDirectory)/s/$(Build.Repository.Name)/'
+              goals: 'versions:set'
+              options: '-DnewVersion=$(apiversion)'
+              publishJUnitResults: false
+              javaHomeOption: 'JDKVersion'
+              mavenVersionOption: 'Default'
+              mavenAuthenticateFeed: false
+              effectivePomSkip: false
+              sonarQubeRunAnalysis: false
+
+          - task: PowerShell@2
+            inputs:
+              targetType: 'inline'
+              script: |
+                write-host $(Agent.BuildDirectory)/s/$(Build.Repository.Name)
+                git config user.email IABOAP03@kcc.com 
+                git config user.name "IA IT Centre Bangalore GDTC Engineering - DevOps Azure Devops"
+                git add pom.xml
+                $COMMIT_MSG="[skip ci] Changed artifact version to $(apiversion)"
+                git commit -m $COMMIT_MSG
+                git push origin dev
+              workingDirectory: '$(Agent.BuildDirectory)/s/$(Build.Repository.Name)/'

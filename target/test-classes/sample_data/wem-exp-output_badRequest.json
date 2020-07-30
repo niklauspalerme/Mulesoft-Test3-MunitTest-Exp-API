@@ -1,0 +1,8 @@
+{
+  "request_timestamp": "2020-07-21T19:42:07.121+05:30",
+  "response_timestamp": "2020-07-21T19:42:08.337+05:30",
+  "processing_time": 1216,
+  "result": "ERROR",
+	"result_code": "10",
+	"reason": "Bad Request"
+}

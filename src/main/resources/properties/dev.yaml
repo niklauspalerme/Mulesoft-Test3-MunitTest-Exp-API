@@ -1,0 +1,20 @@
+app:
+  version:"${pom.version}"
+  
+api:
+  id: "16250416"
+
+https:
+  private:
+    host: "0.0.0.0"
+    port: "8082"
+    password: "_Yk4XaQnTD_$nQ8%"
+    
+azure:  
+  servicebus:
+    namespace: "api-management-dev-ncus"
+    SharedAccessKeyName: "kcc-mkt-coupons-proc-api" 
+    SharedAccessKey: "IBxKkhHk+sU99Q2f4VwK6eLtBge72JspBaAcKJdsYvk="  
+    queuename: "kcc-mkt-coupons-proc-api"
+    maxconnections: "-1"
+

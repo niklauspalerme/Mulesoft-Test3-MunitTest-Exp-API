@@ -1,0 +1,7 @@
+{
+	"request_timestamp" : "2020-04-01T01:20:00Z",     
+	"response_timestamp" : "2020-04-01T02:40:00Z",
+  "processing_time" :287,  
+	"result" :  "SUCCESS",  
+	"result_code" : "00"     
+}

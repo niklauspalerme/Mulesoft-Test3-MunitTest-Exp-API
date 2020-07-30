@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:azure-storage="http://www.mulesoft.org/schema/mule/azure-storage"
+	xmlns:msmq="http://www.mulesoft.org/schema/mule/msmq" xmlns:servicebus="http://www.mulesoft.org/schema/mule/servicebus"
+	xmlns:kcc-utils="http://www.mulesoft.org/schema/mule/kcc-utils"
+	xmlns:smart-logger="http://www.mulesoft.org/schema/mule/smart-logger" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/smart-logger http://www.mulesoft.org/schema/mule/smart-logger/current/mule-smart-logger.xsd
+http://www.mulesoft.org/schema/mule/kcc-utils http://www.mulesoft.org/schema/mule/kcc-utils/current/mule-kcc-utils.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/servicebus http://www.mulesoft.org/schema/mule/servicebus/current/mule-servicebus.xsd
+http://www.mulesoft.org/schema/mule/msmq http://www.mulesoft.org/schema/mule/msmq/current/mule-msmq.xsd
+http://www.mulesoft.org/schema/mule/azure-storage http://www.mulesoft.org/schema/mule/azure-storage/current/mule-azure-storage.xsd">
+
+	
+	<sub-flow name="generateCoupon" doc:id="01a95d8f-2b6b-48a3-9dff-f44ddf39ed9f" >
+		<kcc-utils:kc-logger doc:name="KC Logger-Before CDM Transformation" doc:id="6991cd95-4f3c-473f-84be-3d79a585e1f9" config-ref="KC_Utils_Config" logMessage="Transformation started for generateCoupon " level="INFO" interfaceName="kcc-mkt-wem-exp-api" tracepoint="START" tracepointDesc="before transformation " />
+		<ee:transform doc:name="Transform Message" doc:id="ed1425dd-8fdf-4c70-9535-b32798186d34" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	EmailAddress: payload.EmailAddress,
+	DataSource_Type: payload.DataSource_Type,
+	DataSource: payload.DataSource,
+	CountryCode: payload.CountryCode,
+	MKT_Event: payload.MKT_Event,
+	MKT_SubEvent: payload.MKT_SubEvent,
+	First_Name: payload.First_Name,
+	Last_Name: payload.Last_Name,
+	Cell_Phone: payload.Cell_Phone,
+	Optin: payload.Optin,
+	SMS_OptIn: payload.SMS_OptIn,
+	is_GigyaID_Required: payload.is_GigyaID_Required,
+	Gigya_APIKey: payload.Gigya_APIKey,
+	is_MAT_Required: payload.is_MAT_Required,
+	FB_User: payload.FB_User,
+	Gender: payload.Gender,
+	UserStage: payload.UserStage,
+	DOB: payload.DOB,
+	NationalID_Type: payload.NationalID_Type,
+	NationalID_Number: payload.NationalID_Number,
+	Address_Line1: payload.Address_Line1,
+	Address_Line2: payload.Address_Line2,
+	Address_ZipCode: payload.Address_ZipCode,
+	Address_City: payload.Address_City,
+	Address_State: payload.Address_State,
+	Phone: payload.Phone,
+	Domain: payload.Domain,
+	MyInterests: payload.MyInterests,
+	POS: payload.POS,
+	Product: payload.Product,
+	Processed_Flag: payload.Processed_Flag,
+	User_ID: payload.User_ID,
+	Optin_Type: payload.Optin_Type,
+	Coupon_Code: payload.Coupon_Code,
+	Coupon_Type_ID: payload.Coupon_Type_ID,
+	BrandRole: payload.BrandRole,
+	Order_Number: payload.Order_Number,
+	Hospital_Code: payload.Hospital_Code,
+	FromAddress: payload.FromAddress,
+	ToNumber: payload.ToNumber,
+	SMSText: payload.SMSText,
+	NotifyUrl: payload.NotifyUrl,
+	Brand: payload.Brand,
+	Religious: payload.Religious,
+	Children: payload.Children map ( child , indexOfChild ) -> {
+		DOB: child.DOB,
+		DOB_Type: child.DOB_Type,
+		Name: child.Name,
+		Gender: child.Gender,
+		DiaperSize: child.DiaperSize,
+		Weight: child.Weight,
+		WeightUnit: child.WeightUnit
+	}
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<kcc-utils:kc-logger doc:name="kcc-mkt-coupons-proc-api called " doc:id="55bf848a-15c6-4e81-a87a-d610c32414cc" config-ref="KC_Utils_Config" logMessage="kcc-mkt-coupons-proc-api called " level="INFO" interfaceName="kcc-mkt-wem-exp-api" tracepoint="BEFORE_REQUEST" tracepointDesc="Before kcc-mkt-coupons-proc-api called "/>
+		<servicebus:queue-send doc:name="Queue send" doc:id="0899e1db-814e-4364-beb2-10accff0e371" config-ref="Microsoft_Service_Bus_Config" timeToLiveUnit="DAYS" timeToLive="1" destinationQueue="${secure::azure.servicebus.queuename}"/>
+		<kcc-utils:kc-logger level="INFO" tracepoint="AFTER_REQUEST" doc:name="Process API return success" doc:id="6a270c4b-df7e-4ee3-aa26-28961ad6f1f4" config-ref="KC_Utils_Config" logMessage="kcc-mkt-coupons-proc-api return success. " interfaceName="kcc-mkt-wem-exp-api" tracepointDesc="After kcc-mkt-coupons-proc-api return success. "/>
+		<ee:transform doc:name="Transform Message" doc:id="9f999f63-79b7-48f3-8083-9ee4f93b6d25" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	request_timestamp : vars.request_start_time,
+	response_timestamp: now() ,
+	processing_time: (now() as Number {unit: "milliseconds"})  - (vars.request_start_time  as Number {unit: "milliseconds"}),
+	result: "SUCCESS",
+	result_code: "00"
+	}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+</sub-flow>
+</mule>

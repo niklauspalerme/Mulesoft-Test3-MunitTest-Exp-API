@@ -1,0 +1,8 @@
+{
+	"request_timestamp" : "2019-03-01T01:20:00Z",     
+	"response_timestamp" : "2019-03-01T02:40:00Z",
+    "processing_time" : 1.20,  
+	"result" :  "ERROR",  
+	"result_code" : "90",
+  "reason" : "unsupported media type"      
+}

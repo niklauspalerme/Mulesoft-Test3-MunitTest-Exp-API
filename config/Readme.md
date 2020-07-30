@@ -1,0 +1,1 @@
+Config folder contains the configuration details of various environments like Dev, QA, PROD. Configuration details includes the parameters that will be used for Cloud Hub deployment.

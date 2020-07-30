@@ -1,0 +1,27 @@
+{
+    "domain": "kcc-mkt-wem-exp-api-uat",
+		    "muleVersion": {
+		        "version": "4.2.2"
+		    },
+		    "region": "us-east-2",
+		    "monitoringEnabled": true,
+		    "monitoringAutoRestart": true,
+		    "properties": {
+			"env": "uat",
+			"api.id": "",
+			"anypoint.platform.client_id" : "",
+			"anypoint.platform.client_secret" : "",
+			"prop.vault.key" : ""
+			},
+		    "workers": {
+		        "amount": 1,
+		        "type": {
+		            "name": "Micro",
+		            "weight": 0.1,
+		            "cpu": "0.1 vCores",
+		            "memory": "500 MB memory"
+		        }
+		    },
+		    "loggingNgEnabled": true,
+			"loggingCustomLog4JEnabled": true
+}

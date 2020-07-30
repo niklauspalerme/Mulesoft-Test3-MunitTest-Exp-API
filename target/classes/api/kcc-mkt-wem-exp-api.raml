@@ -1,0 +1,66 @@
+#%RAML 1.0
+title: kcc-mkt-wem-exp-api
+description: Experience API for Coupons generation. Coupons will generated for requested conusmer from Web/Emai source. 
+             Source - Web Server
+             Target - kcc-mkt-coupons-proc-api             
+             Invoked By - Rest API
+             
+
+version: v1
+mediaType: application/json
+protocols:
+   - https
+
+types:
+  generatePostBody: !include exchange_modules/0de1b5ac-8060-4511-a769-5c4528a3be40/kcc-mkt-coupons-library/1.0.5/datatypes/kcc-mkt-coupns-website-type.raml
+
+
+traits:
+  client-id-required:
+    !include traits/client-id-required.raml
+  
+
+
+/generateCoupon:
+  post:
+    description: Processes the Counsumer detils and issue a new Coupon. 
+    is: [client-id-required]
+    body:
+      application/json:
+        type:
+          generatePostBody
+          
+        example: !include exchange_modules/0de1b5ac-8060-4511-a769-5c4528a3be40/kcc-mkt-coupons-library/1.0.5/examples/kcc-mkt-coupons-website-example.json
+          
+                  
+    responses:
+      200:
+        body:
+          application/json:
+            example : !include exchange_modules/0de1b5ac-8060-4511-a769-5c4528a3be40/kcc-mkt-coupons-library/1.0.5/examples/kcc-mkt-coupons-website-200resp-example.json
+#error responses 400 and 500 status codes
+      400:
+          body:
+            application/json: 
+              example: !include exchange_modules/0de1b5ac-8060-4511-a769-5c4528a3be40/kcc-mkt-coupons-library/1.0.5/examples/kcc-mkt-coupons-website-400resp-example.json
+      404:
+          body:
+            application/json:
+              example: !include exchange_modules/0de1b5ac-8060-4511-a769-5c4528a3be40/kcc-mkt-coupons-library/1.0.5/examples/kcc-mkt-coupons-website-404resp-example.json
+      405:
+          body:
+            application/json: 
+              example: !include exchange_modules/0de1b5ac-8060-4511-a769-5c4528a3be40/kcc-mkt-coupons-library/1.0.5/examples/kcc-mkt-coupons-website-405resp-example.json
+        
+      406:
+          body:
+            application/json: 
+              example: !include exchange_modules/0de1b5ac-8060-4511-a769-5c4528a3be40/kcc-mkt-coupons-library/1.0.5/examples/kcc-mkt-coupons-website-406resp-example.json
+      415:
+          body:
+            application/json: 
+              example: !include exchange_modules/0de1b5ac-8060-4511-a769-5c4528a3be40/kcc-mkt-coupons-library/1.0.5/examples/kcc-mkt-coupons-website-415resp-example.json
+      500:
+          body:
+            application/json: 
+              example: !include exchange_modules/0de1b5ac-8060-4511-a769-5c4528a3be40/kcc-mkt-coupons-library/1.0.5/examples/kcc-mkt-coupons-website-500resp-example.json
